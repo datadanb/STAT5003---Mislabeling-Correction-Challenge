@@ -1,0 +1,140 @@
+---
+title: "0 - CORE - Data Import - R"
+author: "Alister Palmer, Yujun He, Taleni Patterson, Dan Bridgman"
+date: "28 September 2018"
+output: html_document
+---
+
+# Setup & installing packages that maybe needed - To add new packages just add to list.of.packages vector
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(pastecs)
+require(kableExtra)
+require(corrplot)
+require(ggplot2)
+require(VIM)
+require(caret)
+
+```
+
+# Reading in the data
+```{r}
+
+# Reading in the functions to import data.
+source("C:\\Users\\dan bridgman\\Desktop\\Uni\\Projects\\STAT5003\\Code\\0 - PrepFunctions.R")
+
+## TRAINING DATA ###
+file_data_cli <- "C:\\Users\\dan bridgman\\Desktop\\Uni\\Projects\\STAT5003\\Data\\Group project\\train_cli.tsv"
+file_data_pro <- "C:\\Users\\dan bridgman\\Desktop\\Uni\\Projects\\STAT5003\\Data\\Group project\\train_pro.tsv"
+training_labels <- "C:\\Users\\dan bridgman\\Desktop\\Uni\\Projects\\STAT5003\\Data\\Group project\\sum_tab_1.csv"
+
+## TEST DATA ###
+file_data_cli_test <- "C:\\Users\\dan bridgman\\Desktop\\Uni\\Projects\\STAT5003\\Data\\Group project\\test_cli.tsv"
+file_data_pro_test <- "C:\\Users\\dan bridgman\\Desktop\\Uni\\Projects\\STAT5003\\Data\\Group project\\test_pro.tsv"
+
+
+
+# Calling the import_data function from "0 - PrepFunctions.R" for training data
+train_cli <- importdata(filetype = "txt",file = file_data_cli,header = TRUE)
+train_pro <- importdata(filetype = "txt",file = file_data_pro,header = TRUE)
+
+# Calling the import_data function from "0 - PrepFunctions.R" for test data
+test_cli <- importdata(filetype = "txt",file = file_data_cli_test,header = TRUE)
+test_pro <- importdata(filetype = "txt",file = file_data_pro_test,header = TRUE)
+
+# Bringing in the labels for training (of which we're not sure which ones are correct and which ones aren't)
+train_labels <- importdata(filetype = "csv",file = training_labels,header = TRUE)
+
+```
+
+## Transposing the train & test proteomic files to allow protein strands to become features
+## and training numbers to become ids
+```{r}
+
+# Transpose the original data frame
+t_train_pro <- transpose(train_pro)
+colnames(t_train_pro) <- rownames(train_pro)
+
+# Get the sample id to join to other columns
+sample <- colnames(train_pro)
+
+# Column bind
+t_train_pro <- cbind(sample,t_train_pro)
+colnames(t_train_pro)[1] <- "sample"
+
+
+# Transpose the original data frame
+t_test_pro <- transpose(test_pro)
+colnames(t_test_pro) <- rownames(test_pro)
+
+# Get the sample id to join to other columns
+sample <- colnames(test_pro)
+
+# Column bind
+t_test_pro <- cbind(sample,t_test_pro)
+colnames(t_test_pro)[1] <- "sample"
+
+t_test_pro
+```
+# Converting factors to numericals
+```{r}
+train_cli$gender <- as.numeric(train_cli$gender)
+train_cli$msi <- as.numeric(train_cli$msi)
+
+test_cli$gender <- as.numeric(test_cli$gender)
+test_cli$msi <- as.numeric(test_cli$msi)
+
+```
+
+# Merging/joining data frames - Cli data, labels and proteomic data
+```{r}
+# Check ?merge for this section
+
+labels_and_cli <- merge(train_cli,train_labels, by.x = "sample", by.y ="sample", all.x = TRUE )
+merged_dfs <- merge(labels_and_cli,t_train_pro, by.x = "sample", by.y ="sample", all.x = TRUE )
+#merged_dfs <- merge(merged_dfs,train_labels, by.x = "sample", by.y ="sample", all.x = TRUE )
+#df_cleaned <- ImputeData(df, droplist = df[])
+merged_dfs
+```
+
+
+
+```{r}
+# Using the Check - Checking missing values and remove, ignore or impute
+# How many columns have NAs?
+row.has.na <- apply(merged_dfs, 2, function(x){any(is.na(x))})
+row.has.na
+
+
+if (sum(row.has.na) ==0)
+  {
+    print(" rows have missing values found")
+    df_cleaned <- merged_dfs
+  } else{
+    print(c(sum(row.has.na),"missing values found"))
+    print("Histogram of missing merged_dfs")
+    aggr_plot <- aggr(merged_dfs, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE, labels=names(merged_dfs), cex.axis=.7, gap=3, ylab=c("Histogram of missing merged_dfs, pre-cleaning","Pattern") )
+    missingcols <- colnames(merged_dfs)[colSums(is.na(merged_dfs)) > 0]
+    colstoexclude <- colnames(merged_dfs[,-which(names(merged_dfs) %in% missingcols)])
+    #Remove NAs
+}
+
+```
+
+
+# Generating some descriptive statistics and some summary stats to check quality of the data and the general shape
+```{r}
+descriptives <- t(stat.desc(merged_dfs, basic = F))
+
+kable(descriptives, format = "html") %>%
+kable_styling(full_width = F)
+
+```
+
+```{r}
+
+```
+
+
+
